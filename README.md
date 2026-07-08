@@ -5,7 +5,7 @@
 ![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)
 ![MIT](https://img.shields.io/badge/license-MIT-green)
 
-A [MyThingsLab](../mythings-core) `My[X]` tool: the **discovery + synthesis**
+A [MyThingsLab](../my-things-core) `My[X]` tool: the **discovery + synthesis**
 front for studying a topic. Given a topic issue, it discovers external sources
 **live** (arXiv + a web-search provider), then makes **one** Engine call to write
 a cited study brief — a summary, an annotated reading list, and a
@@ -51,7 +51,7 @@ the test suite.
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
-pip install -e ../mythings-core -e ../my-guard -e ".[dev]"
+pip install -e ../my-things-core -e ../my-guard -e ".[dev]"
 pytest
 ```
 
