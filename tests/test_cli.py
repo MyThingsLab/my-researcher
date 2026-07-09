@@ -68,3 +68,7 @@ def test_cli_plan_skips_when_no_topics(
     out = capsys.readouterr().out
     assert code == 0
     assert "skipped (plan)" in out
+
+
+def test_noop_placeholder() -> None:
+    assert True
