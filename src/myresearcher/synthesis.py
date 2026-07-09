@@ -85,6 +85,17 @@ def _parse_json_object(text: str) -> dict | None:
         text = "\n".join(lines).strip()
     try:
         obj = json.loads(text)
+        return obj if isinstance(obj, dict) else None
+    except (json.JSONDecodeError, ValueError):
+        pass
+    # Models sometimes wrap the JSON in a sentence of preamble or trailing
+    # commentary despite the "nothing else" instruction -- retry on just the
+    # outermost {...} span before giving up and degrading.
+    start, end = text.find("{"), text.rfind("}")
+    if start == -1 or end == -1 or end <= start:
+        return None
+    try:
+        obj = json.loads(text[start : end + 1])
     except (json.JSONDecodeError, ValueError):
         return None
     return obj if isinstance(obj, dict) else None

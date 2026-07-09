@@ -49,6 +49,17 @@ def test_synthesize_brief_drops_invented_source() -> None:
     assert brief.cited == ["arxiv:1"]  # the invented id is dropped
 
 
+def test_synthesize_brief_tolerates_preamble_before_json() -> None:
+    reply = (
+        "Sure, here is the brief:\n\n"
+        + json.dumps({"summary": "GNNs learn on graphs.", "reading_list": []})
+        + "\nLet me know if you need anything else."
+    )
+    brief = synthesize_brief(ScriptedEngine(reply), "GNN", "", _SOURCES)
+    assert not brief.degraded
+    assert brief.summary == "GNNs learn on graphs."
+
+
 def test_synthesize_brief_matches_source_id_without_version_suffix() -> None:
     url = "http://arxiv.org/abs/2304.02660v4"
     sources = [Source("arxiv:2304.02660v4", "Generalized Charges", url, "s", "arxiv")]
