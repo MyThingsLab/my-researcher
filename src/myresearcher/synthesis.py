@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass, field
 
 from mythings.engine import Engine, EngineRequest
@@ -14,6 +15,26 @@ _BRIEF_SYSTEM = (
     "most foundational and the most recent sources when recommending a reading "
     "order. Reply with a single JSON object and nothing else."
 )
+
+_LEVEL_GUIDANCE = {
+    "standard": "",
+    "graduate": (
+        " Write for a graduate-level reader: assume the field's standard "
+        "prerequisites rather than re-deriving them, foreground open problems "
+        "and where the sources disagree or the theory is unsettled, and "
+        "distinguish foundational results from recent/speculative ones."
+    ),
+    "research": (
+        " Write for a research-level reader already fluent in the subfield's "
+        "language: skip introductory framing entirely, foreground open "
+        "problems and active controversies among the sources, and distinguish "
+        "established results from recent/speculative ones."
+    ),
+}
+
+
+def _brief_system(level: str) -> str:
+    return _BRIEF_SYSTEM + _LEVEL_GUIDANCE.get(level, "")
 
 _PLAN_SYSTEM = (
     "You order a set of already-researched study topics into a learning "
@@ -75,6 +96,24 @@ def _as_str_list(value: object) -> list[str]:
     return [str(v).strip() for v in value if str(v).strip()]
 
 
+_ARXIV_VERSION = re.compile(r"v\d+$")
+_BARE_ARXIV_ID = re.compile(r"^\d{4}\.\d{4,5}(v\d+)?$")
+
+
+def _normalize_source_id(sid: str) -> str:
+    # Models routinely cite arXiv IDs without the version suffix (or without
+    # the "arxiv:" prefix) even when the source list spells out both — match
+    # on the normalized form so a real citation isn't dropped as invented.
+    sid = sid.strip().lower()
+    if _BARE_ARXIV_ID.match(sid):
+        sid = f"arxiv:{sid}"
+    prefix, sep, rest = sid.partition(":")
+    if prefix == "arxiv" and sep:
+        rest = _ARXIV_VERSION.sub("", rest)
+        return f"arxiv:{rest}"
+    return sid
+
+
 def _brief_prompt(title: str, body: str, sources: list[Source]) -> str:
     lines = [f"Topic: {title}"]
     if body.strip():
@@ -114,10 +153,12 @@ def _raw_brief(topic: str, sources: list[Source]) -> Brief:
     )
 
 
-def synthesize_brief(engine: Engine, title: str, body: str, sources: list[Source]) -> Brief:
+def synthesize_brief(
+    engine: Engine, title: str, body: str, sources: list[Source], *, level: str = "standard"
+) -> Brief:
     reply = engine.run(
         EngineRequest(
-            system=_BRIEF_SYSTEM,
+            system=_brief_system(level),
             prompt=_brief_prompt(title, body, sources),
             context={"source_count": len(sources)},
         )
@@ -126,18 +167,19 @@ def synthesize_brief(engine: Engine, title: str, body: str, sources: list[Source
     if obj is None:
         return _raw_brief(title, sources)
 
-    valid_ids = {s.source_id for s in sources}
+    by_norm = {_normalize_source_id(s.source_id): s.source_id for s in sources}
     reading: list[ReadingItem] = []
     for i, item in enumerate(obj.get("reading_list") or [], start=1):
         if not isinstance(item, dict):
             continue
         sid = str(item.get("source_id", "")).strip()
-        if sid not in valid_ids:  # drop any source the model invented
+        actual_sid = by_norm.get(_normalize_source_id(sid))
+        if actual_sid is None:  # drop any source the model invented
             continue
         order = item.get("order")
         reading.append(
             ReadingItem(
-                source_id=sid,
+                source_id=actual_sid,
                 why=str(item.get("why", "")).strip(),
                 order=int(order) if isinstance(order, int) else i,
             )

@@ -27,6 +27,9 @@ myresearcher brief --issue 12 --repo MyThingsLab/study --engine claude-cli
 # arXiv only, no web provider needed, print locally without a PR/comment:
 myresearcher brief --issue 12 --sources arxiv --no-pr --no-comment
 
+# Graduate/research-depth synthesis instead of the default general-reader register:
+myresearcher brief --issue 12 --engine claude-cli --level research
+
 # Order every researched topic into a study path → research/STUDY-PLAN.md (PR).
 myresearcher plan --repo MyThingsLab/study --engine claude-cli
 ```

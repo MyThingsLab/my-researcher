@@ -67,6 +67,12 @@ def main(argv: list[str] | None = None) -> int:
         help="comma-separated retrieval backends (default: arxiv,web)",
     )
     brief.add_argument("--top", type=int, default=15, help="max sources to shortlist")
+    brief.add_argument(
+        "--level",
+        choices=("standard", "graduate", "research"),
+        default="standard",
+        help="depth of the synthesized brief (default: standard)",
+    )
     brief.add_argument("--no-comment", action="store_true", help="skip the issue comment")
 
     plan = sub.add_parser("plan", help="order all researched topics into a study path")
@@ -78,6 +84,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "brief":
         researcher.sources = tuple(s.strip() for s in args.sources.split(",") if s.strip())
         researcher.top = args.top
+        researcher.level = args.level
         result = researcher.brief(args.issue, no_pr=args.no_pr, no_comment=args.no_comment)
     else:
         result = researcher.plan(no_pr=args.no_pr)

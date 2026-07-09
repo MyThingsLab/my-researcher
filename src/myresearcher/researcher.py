@@ -70,6 +70,7 @@ class Researcher:
         web_api_key: str | None = None,
         sources: tuple[str, ...] = ("arxiv", "web"),
         top: int = 15,
+        level: str = "standard",
     ) -> None:
         self.repo_root = Path(repo_root)
         self.repo = repo
@@ -83,6 +84,7 @@ class Researcher:
         self.web_api_key = web_api_key
         self.sources = sources
         self.top = top
+        self.level = level
 
     # ---- brief -----------------------------------------------------------
 
@@ -106,7 +108,7 @@ class Researcher:
             self._record_brief("skipped", topic, None, None, None, comment_url=url)
             return self._skip("brief", topic.title, detail)
 
-        brief = synthesize_brief(self.engine, topic.title, topic.body, found)
+        brief = synthesize_brief(self.engine, topic.title, topic.body, found, level=self.level)
         markdown = render_brief(brief)
 
         pr = None

@@ -49,6 +49,30 @@ def test_synthesize_brief_drops_invented_source() -> None:
     assert brief.cited == ["arxiv:1"]  # the invented id is dropped
 
 
+def test_synthesize_brief_matches_source_id_without_version_suffix() -> None:
+    url = "http://arxiv.org/abs/2304.02660v4"
+    sources = [Source("arxiv:2304.02660v4", "Generalized Charges", url, "s", "arxiv")]
+    reply = json.dumps(
+        {
+            "summary": "x",
+            # model cites the bare id, dropping the version -- a common habit
+            "reading_list": [{"source_id": "arxiv:2304.02660", "why": "start here", "order": 1}],
+        }
+    )
+    brief = synthesize_brief(ScriptedEngine(reply), "Symmetries", "", sources)
+    assert brief.cited == ["arxiv:2304.02660v4"]  # matched to the real source, not dropped
+
+
+def test_synthesize_brief_research_level_changes_system_prompt() -> None:
+    reply = json.dumps({"summary": "x", "reading_list": []})
+    engine = ScriptedEngine(reply)
+    synthesize_brief(engine, "GNN", "", _SOURCES, level="research")
+    assert "research-level reader" in engine.calls[-1].system
+
+    synthesize_brief(engine, "GNN", "", _SOURCES)  # default level
+    assert "research-level reader" not in engine.calls[-1].system
+
+
 def test_synthesize_brief_degrades_on_noop() -> None:
     brief = synthesize_brief(NoopEngine(), "GNN", "", _SOURCES)
     assert brief.degraded
