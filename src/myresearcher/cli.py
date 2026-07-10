@@ -74,6 +74,11 @@ def main(argv: list[str] | None = None) -> int:
         help="depth of the synthesized brief (default: standard)",
     )
     brief.add_argument("--no-comment", action="store_true", help="skip the issue comment")
+    brief.add_argument(
+        "--no-bibliography",
+        action="store_true",
+        help="skip filing my-bibliography issues for cited arXiv sources",
+    )
 
     plan = sub.add_parser("plan", help="order all researched topics into a study path")
     _add_common(plan)
@@ -85,7 +90,12 @@ def main(argv: list[str] | None = None) -> int:
         researcher.sources = tuple(s.strip() for s in args.sources.split(",") if s.strip())
         researcher.top = args.top
         researcher.level = args.level
-        result = researcher.brief(args.issue, no_pr=args.no_pr, no_comment=args.no_comment)
+        result = researcher.brief(
+            args.issue,
+            no_pr=args.no_pr,
+            no_comment=args.no_comment,
+            no_bibliography=args.no_bibliography,
+        )
     else:
         result = researcher.plan(no_pr=args.no_pr)
 

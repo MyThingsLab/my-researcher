@@ -90,11 +90,14 @@ class FakeRunner:
         title: str = "Graph Neural Networks",
         body: str = "GNNs for physics",
         existing_pr: dict | None = None,
+        open_bibliography_issues: list[dict] | None = None,
     ) -> None:
         self.calls: list[list[str]] = []
         self.title = title
         self.body = body
         self.existing_pr = existing_pr
+        self.open_bibliography_issues = open_bibliography_issues or []
+        self._next_issue_number = 100
 
     def __call__(self, argv: list[str]) -> str:
         self.calls.append(argv)
@@ -106,6 +109,25 @@ class FakeRunner:
             return "https://github.com/owner/name/pull/7\n"
         if argv[:2] == ["issue", "comment"]:
             return "https://github.com/owner/name/issues/5#issuecomment-1\n"
+        if argv[:2] == ["issue", "list"]:
+            return json.dumps(
+                [
+                    {
+                        "number": i["number"],
+                        "title": i["title"],
+                        "body": i.get("body", ""),
+                        "labels": [{"name": "my-bibliography"}],
+                        "url": f"https://github.com/owner/name/issues/{i['number']}",
+                    }
+                    for i in self.open_bibliography_issues
+                ]
+            )
+        if argv[:2] == ["issue", "create"]:
+            self._next_issue_number += 1
+            number = self._next_issue_number
+            return f"https://github.com/owner/name/issues/{number}\n"
+        if argv[:2] == ["issue", "edit"]:
+            return ""
         raise AssertionError(f"unexpected gh call: {argv}")
 
 

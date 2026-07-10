@@ -15,7 +15,10 @@ already-researched topics into a study path.
 It complements the rest of the line: **MyKnowledger** *answers* questions from a
 corpus a human already built, while MyResearcher *goes and finds* the sources.
 It never ingests a corpus itself — it hands you a cited source list you can feed
-to graphify out of band.
+to graphify out of band. Every `brief` also files one `my-bibliography`-labeled
+issue per cited arXiv source (`--no-bibliography` to skip) so **MyBibliography**
+can independently resolve it into a `references.bib`/`references.json` entry —
+a labeled issue handoff, not a package dependency.
 
 ## Usage
 

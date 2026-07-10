@@ -12,7 +12,7 @@ from mythings.isolation import Workspace, in_github_actions
 from mythings.ledger import Ledger
 from mythings.policy import Action, Decision, Policy
 
-from myresearcher.retrieval import Fetcher, _http, retrieve
+from myresearcher.retrieval import Fetcher, Source, _http, retrieve
 from myresearcher.synthesis import (
     Brief,
     render_brief,
@@ -22,6 +22,7 @@ from myresearcher.synthesis import (
 )
 
 LABEL = "my-researcher"
+BIBLIOGRAPHY_LABEL = "my-bibliography"
 
 
 class PolicyDenied(RuntimeError):
@@ -88,7 +89,14 @@ class Researcher:
 
     # ---- brief -----------------------------------------------------------
 
-    def brief(self, issue: int, *, no_pr: bool = False, no_comment: bool = False) -> Result:
+    def brief(
+        self,
+        issue: int,
+        *,
+        no_pr: bool = False,
+        no_comment: bool = False,
+        no_bibliography: bool = False,
+    ) -> Result:
         try:
             topic = self._fetch_issue(issue)
         except GitHubError as err:
@@ -126,11 +134,23 @@ class Researcher:
             except PolicyDenied as denied:
                 return self._fail("brief", topic.title, str(denied))
 
+        bibliography_issues = (
+            [] if no_bibliography else self._file_bibliography_issues(topic, brief)
+        )
+
         url = None if no_comment else self._comment(issue, markdown)
         self._record_brief(
-            "success", topic, brief, pr.number if pr else None, path, comment_url=url
+            "success",
+            topic,
+            brief,
+            pr.number if pr else None,
+            path,
+            comment_url=url,
+            bibliography_issues=bibliography_issues,
         )
         detail = f"brief for {topic.title!r} ({len(found)} sources)"
+        if bibliography_issues:
+            detail += f", filed {len(bibliography_issues)} bibliography issue(s)"
         return Result("success", "brief", topic.title, pr.number if pr else None, detail, path)
 
     # ---- plan ------------------------------------------------------------
@@ -222,6 +242,47 @@ class Researcher:
         row = rows[0]
         return PullRequest(number=row.get("number") or _pr_number(row["url"]), url=row["url"])
 
+    def _file_bibliography_issues(self, topic: _Topic, brief: Brief) -> list[dict]:
+        # Every arXiv source actually cited in the brief already carries a
+        # locator my-bibliography understands verbatim (Source.source_id is
+        # "arxiv:<id>"). Web sources have no resolvable DOI/arXiv id, so they
+        # are left uncataloged. Filed as a plain labeled issue, not a package
+        # call -- my-bibliography is a fully independent tool, same fence as
+        # MyTodo reading MyPlanner's ledger instead of importing it.
+        if self.repo is None:
+            return []
+        smap: dict[str, Source] = {s.source_id: s for s in brief.sources}
+        existing_titles: set[str] | None = None
+        filed: list[dict] = []
+        for source_id in brief.cited:
+            source = smap.get(source_id)
+            if source is None or source.origin != "arxiv":
+                continue
+            title = f"bibliography: catalog {source_id}"
+            if existing_titles is None:
+                existing_titles = self._open_bibliography_titles()
+            if title in existing_titles:
+                continue
+            action = Action(kind="bash", payload={"command": f"gh issue create --title {title!r}"})
+            gate = self.policy.evaluate(action).under(unattended=in_github_actions())
+            if gate is not Decision.ALLOW:
+                continue
+            body = (
+                f"{source_id}\n\nCited in the {topic.title!r} study brief "
+                f"(issue #{topic.number})."
+            )
+            created = self.github.create_issue(title=title, body=body)
+            self.github.add_labels(created.number, [BIBLIOGRAPHY_LABEL])
+            filed.append({"source_id": source_id, "issue": created.number})
+        return filed
+
+    def _open_bibliography_titles(self) -> set[str]:
+        try:
+            issues = self.github.list_issues(labels=[BIBLIOGRAPHY_LABEL], state="open", limit=100)
+        except GitHubError:
+            return set()
+        return {i.title for i in issues}
+
     def _comment(self, issue: int, body: str) -> str | None:
         if self.repo is None:
             return None
@@ -253,6 +314,7 @@ class Researcher:
         path: str | None,
         *,
         comment_url: str | None,
+        bibliography_issues: list[dict] | None = None,
     ) -> None:
         self.ledger.record(
             tool="myresearcher",
@@ -267,6 +329,7 @@ class Researcher:
             brief_path=path,
             pr=pr,
             comment_url=comment_url,
+            bibliography_issues=bibliography_issues or [],
         )
 
     def _skip(self, mode: str, topic: str | None, detail: str) -> Result:
