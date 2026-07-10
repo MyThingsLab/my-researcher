@@ -24,8 +24,14 @@ covered here defers to `HARNESS.md`, then `my-things-core/docs/CONVENTIONS.md`.
   — needs `TAVILY_API_KEY`, a CI secret, never committed). The HTTP boundary is
   mocked in the default suite; any real-network test is `@pytest.mark.slow`.
   **Never ingests a corpus itself** (no graphify ingest — that stays a human,
-  out-of-band step). Two side effects, both routed through `Policy` (`Guard`
+  out-of-band step). Three side effects, all routed through `Policy` (`Guard`
   default): a committed `research/<topic>.md` / `STUDY-PLAN.md` PR (idempotent
-  per topic) and an issue comment. **Never merges.** Ledger `kind`s: `research`
-  (brief), `study_plan` (plan).
+  per topic), an issue comment, and (per `brief`, opt-out `--no-bibliography`)
+  filing one `my-bibliography`-labeled issue per cited arXiv source (body is
+  the bare `arxiv:<id>` locator, deduped against currently-open bibliography
+  issues by title) — never a package import of `mybibliography`, and never a
+  call to it; it only leaves a labeled issue for that independent tool to pick
+  up. Web-origin sources have no resolvable locator and are never filed.
+  **Never merges.** Ledger `kind`s: `research` (brief; `data.bibliography_issues`
+  lists what was filed), `study_plan` (plan).
 - **Backlog label:** `my-researcher`

@@ -107,6 +107,74 @@ def test_brief_reuses_existing_pr(tmp_path: Path) -> None:
     assert not any(c[:2] == ["pr", "create"] for c in fake.calls)
 
 
+def test_brief_files_bibliography_issue_for_cited_arxiv_source(tmp_path: Path) -> None:
+    repo = make_repo(tmp_path)
+    fake = FakeRunner()
+    r, ledger = _researcher(repo, tmp_path, fake, engine=ScriptedEngine(_BRIEF_REPLY))
+
+    result = r.brief(issue=5, no_pr=True, no_comment=True)
+
+    assert result.outcome == "success"
+    creates = [c for c in fake.calls if c[:2] == ["issue", "create"]]
+    assert len(creates) == 1
+    assert "bibliography: catalog arxiv:2101.00001v1" in creates[0]
+    edits = [c for c in fake.calls if c[:2] == ["issue", "edit"]]
+    assert edits and "my-bibliography" in edits[0]
+
+    entry = list(ledger)[0]
+    assert entry.data["bibliography_issues"] == [
+        {"source_id": "arxiv:2101.00001v1", "issue": 101}
+    ]
+
+
+def test_brief_does_not_file_bibliography_issue_for_web_source(tmp_path: Path) -> None:
+    repo = make_repo(tmp_path)
+    fake = FakeRunner()
+    reply = json.dumps(
+        {
+            "summary": "An intro to GNNs.",
+            "reading_list": [{"source_id": "web:1", "why": "gentle intro", "order": 1}],
+            "prerequisites": [],
+            "learning_path": [],
+        }
+    )
+    r, ledger = _researcher(repo, tmp_path, fake, engine=ScriptedEngine(reply))
+
+    result = r.brief(issue=5, no_pr=True, no_comment=True)
+
+    assert result.outcome == "success"
+    assert not any(c[:2] == ["issue", "create"] for c in fake.calls)
+    assert list(ledger)[0].data["bibliography_issues"] == []
+
+
+def test_brief_no_bibliography_flag_skips_filing(tmp_path: Path) -> None:
+    repo = make_repo(tmp_path)
+    fake = FakeRunner()
+    r, ledger = _researcher(repo, tmp_path, fake, engine=ScriptedEngine(_BRIEF_REPLY))
+
+    result = r.brief(issue=5, no_pr=True, no_comment=True, no_bibliography=True)
+
+    assert result.outcome == "success"
+    assert not any(c[:2] == ["issue", "create"] for c in fake.calls)
+    assert list(ledger)[0].data["bibliography_issues"] == []
+
+
+def test_brief_does_not_refile_existing_bibliography_issue(tmp_path: Path) -> None:
+    repo = make_repo(tmp_path)
+    fake = FakeRunner(
+        open_bibliography_issues=[
+            {"number": 42, "title": "bibliography: catalog arxiv:2101.00001v1"}
+        ]
+    )
+    r, ledger = _researcher(repo, tmp_path, fake, engine=ScriptedEngine(_BRIEF_REPLY))
+
+    result = r.brief(issue=5, no_pr=True, no_comment=True)
+
+    assert result.outcome == "success"
+    assert not any(c[:2] == ["issue", "create"] for c in fake.calls)
+    assert list(ledger)[0].data["bibliography_issues"] == []
+
+
 def test_plan_orders_researched_topics(tmp_path: Path) -> None:
     repo = make_repo(tmp_path)
     fake = FakeRunner()
