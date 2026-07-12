@@ -16,9 +16,9 @@ def test_cli_brief_noop_degrades_and_prints(
     monkeypatch.delenv("TAVILY_API_KEY", raising=False)
 
     # Patch the network + gh boundaries at the CLI's Researcher construction.
-    from conftest import FakeRunner, fake_fetch
+    from conftest import fake_fetch, fake_gh
 
-    fake = FakeRunner()
+    fake = fake_gh()
     real_make = cli._make
 
     def _make(args):  # noqa: ANN001
