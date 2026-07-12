@@ -6,12 +6,11 @@ from pathlib import Path
 from mythings.ledger import Ledger
 
 from conftest import (
-    FakeRunner,
     ScriptedEngine,
-    SpyEngine,
     branch_file,
     empty_fetch,
     fake_fetch,
+    fake_gh,
     make_repo,
 )
 from myresearcher.researcher import Researcher
@@ -26,7 +25,7 @@ _BRIEF_REPLY = json.dumps(
 )
 
 
-def _researcher(repo: Path, tmp_path: Path, fake: FakeRunner, **kw) -> tuple[Researcher, Ledger]:
+def _researcher(repo: Path, tmp_path: Path, fake: fake_gh, **kw) -> tuple[Researcher, Ledger]:
     ledger = Ledger(tmp_path / "ledger.jsonl")
     r = Researcher(
         repo_root=repo,
@@ -42,7 +41,7 @@ def _researcher(repo: Path, tmp_path: Path, fake: FakeRunner, **kw) -> tuple[Res
 
 def test_brief_happy_path_opens_pr_and_comments(tmp_path: Path) -> None:
     repo = make_repo(tmp_path)
-    fake = FakeRunner()
+    fake = fake_gh()
     r, ledger = _researcher(repo, tmp_path, fake, engine=ScriptedEngine(_BRIEF_REPLY))
 
     result = r.brief(issue=5)
@@ -67,8 +66,8 @@ def test_brief_happy_path_opens_pr_and_comments(tmp_path: Path) -> None:
 
 def test_brief_no_sources_skips_engine_and_pr(tmp_path: Path) -> None:
     repo = make_repo(tmp_path)
-    fake = FakeRunner()
-    spy = SpyEngine()
+    fake = fake_gh()
+    spy = ScriptedEngine()
     r, ledger = _researcher(repo, tmp_path, fake, engine=spy)
     r.fetch = empty_fetch
 
@@ -83,7 +82,7 @@ def test_brief_no_sources_skips_engine_and_pr(tmp_path: Path) -> None:
 
 def test_brief_no_pr_and_no_comment(tmp_path: Path) -> None:
     repo = make_repo(tmp_path)
-    fake = FakeRunner()
+    fake = fake_gh()
     r, _ = _researcher(repo, tmp_path, fake, engine=ScriptedEngine(_BRIEF_REPLY))
 
     result = r.brief(issue=5, no_pr=True, no_comment=True)
@@ -96,7 +95,7 @@ def test_brief_no_pr_and_no_comment(tmp_path: Path) -> None:
 
 def test_brief_reuses_existing_pr(tmp_path: Path) -> None:
     repo = make_repo(tmp_path)
-    fake = FakeRunner(
+    fake = fake_gh(
         existing_pr={"number": 42, "url": "https://github.com/owner/name/pull/42"}
     )
     r, _ = _researcher(repo, tmp_path, fake, engine=ScriptedEngine(_BRIEF_REPLY))
@@ -109,7 +108,7 @@ def test_brief_reuses_existing_pr(tmp_path: Path) -> None:
 
 def test_brief_files_bibliography_issue_for_cited_arxiv_source(tmp_path: Path) -> None:
     repo = make_repo(tmp_path)
-    fake = FakeRunner()
+    fake = fake_gh()
     r, ledger = _researcher(repo, tmp_path, fake, engine=ScriptedEngine(_BRIEF_REPLY))
 
     result = r.brief(issue=5, no_pr=True, no_comment=True)
@@ -129,7 +128,7 @@ def test_brief_files_bibliography_issue_for_cited_arxiv_source(tmp_path: Path) -
 
 def test_brief_does_not_file_bibliography_issue_for_web_source(tmp_path: Path) -> None:
     repo = make_repo(tmp_path)
-    fake = FakeRunner()
+    fake = fake_gh()
     reply = json.dumps(
         {
             "summary": "An intro to GNNs.",
@@ -149,7 +148,7 @@ def test_brief_does_not_file_bibliography_issue_for_web_source(tmp_path: Path) -
 
 def test_brief_no_bibliography_flag_skips_filing(tmp_path: Path) -> None:
     repo = make_repo(tmp_path)
-    fake = FakeRunner()
+    fake = fake_gh()
     r, ledger = _researcher(repo, tmp_path, fake, engine=ScriptedEngine(_BRIEF_REPLY))
 
     result = r.brief(issue=5, no_pr=True, no_comment=True, no_bibliography=True)
@@ -161,7 +160,7 @@ def test_brief_no_bibliography_flag_skips_filing(tmp_path: Path) -> None:
 
 def test_brief_does_not_refile_existing_bibliography_issue(tmp_path: Path) -> None:
     repo = make_repo(tmp_path)
-    fake = FakeRunner(
+    fake = fake_gh(
         open_bibliography_issues=[
             {"number": 42, "title": "bibliography: catalog arxiv:2101.00001v1"}
         ]
@@ -177,7 +176,7 @@ def test_brief_does_not_refile_existing_bibliography_issue(tmp_path: Path) -> No
 
 def test_plan_orders_researched_topics(tmp_path: Path) -> None:
     repo = make_repo(tmp_path)
-    fake = FakeRunner()
+    fake = fake_gh()
     ledger = Ledger(tmp_path / "ledger.jsonl")
     ledger.record("myresearcher", "research", "success", topic="GNN", summary="graphs")
     ledger.record("myresearcher", "research", "success", topic="RBM", summary="energy models")
@@ -208,8 +207,8 @@ def test_plan_orders_researched_topics(tmp_path: Path) -> None:
 
 def test_plan_skips_with_fewer_than_two_topics(tmp_path: Path) -> None:
     repo = make_repo(tmp_path)
-    fake = FakeRunner()
-    spy = SpyEngine()
+    fake = fake_gh()
+    spy = ScriptedEngine()
     ledger = Ledger(tmp_path / "ledger.jsonl")
     ledger.record("myresearcher", "research", "success", topic="GNN", summary="graphs")
     r = Researcher(
