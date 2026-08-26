@@ -8,11 +8,12 @@ from pathlib import Path
 from myguard import Guard
 from mythings.engine import Engine, NoopEngine
 from mythings.github import GitHub, GitHubError, PullRequest, Runner, _gh, _pr_number
+from mythings.http import Fetcher, http_get
 from mythings.isolation import Workspace, in_github_actions
 from mythings.ledger import Ledger
 from mythings.policy import Action, Decision, Policy
 
-from myresearcher.retrieval import Fetcher, Source, _http, retrieve
+from myresearcher.retrieval import Source, retrieve
 from myresearcher.synthesis import (
     Brief,
     render_brief,
@@ -67,7 +68,7 @@ class Researcher:
         engine: Engine | None = None,
         policy: Policy | None = None,
         runner: Runner = _gh,
-        fetch: Fetcher = _http,
+        fetch: Fetcher = http_get,
         web_api_key: str | None = None,
         sources: tuple[str, ...] = ("arxiv", "web"),
         top: int = 15,
