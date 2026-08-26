@@ -2,15 +2,11 @@ from __future__ import annotations
 
 import json
 import urllib.parse
-import urllib.request
-from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from xml.etree import ElementTree as ET
 
-# The one network boundary. Default shells out to urllib; tests inject a fake so
-# the HTTP call is the only thing mocked (same discipline as engine/github Runners).
-Fetcher = Callable[..., bytes]
+from mythings.http import Fetcher, http_get
 
 ARXIV_ENDPOINT = "http://export.arxiv.org/api/query"
 TAVILY_ENDPOINT = "https://api.tavily.com/search"
@@ -34,12 +30,6 @@ class Source:
     origin: str  # "arxiv" | "web"
     authors: list[str] = field(default_factory=list)
     year: int | None = None
-
-
-def _http(url: str, *, data: bytes | None = None, headers: dict[str, str] | None = None) -> bytes:
-    req = urllib.request.Request(url, data=data, headers=headers or {})
-    with urllib.request.urlopen(req, timeout=30) as resp:  # noqa: S310 - fixed https/http endpoints
-        return resp.read()
 
 
 def tokenize(text: str) -> list[str]:
@@ -75,7 +65,7 @@ def _year_of(published: str | None) -> int | None:
     return int(published[:4])
 
 
-def search_arxiv(query: str, *, fetch: Fetcher = _http, limit: int = 10) -> list[Source]:
+def search_arxiv(query: str, *, fetch: Fetcher = http_get, limit: int = 10) -> list[Source]:
     if not query:
         return []
     params = urllib.parse.urlencode(
@@ -117,7 +107,7 @@ def search_web(
     query: str,
     *,
     api_key: str | None,
-    fetch: Fetcher = _http,
+    fetch: Fetcher = http_get,
     limit: int = 10,
 ) -> list[Source]:
     # Tavily: a single JSON POST returning ranked, snippet-bearing results built
@@ -157,7 +147,7 @@ def retrieve(
     *,
     sources: tuple[str, ...] = ("arxiv", "web"),
     top: int = 15,
-    fetch: Fetcher = _http,
+    fetch: Fetcher = http_get,
     api_key: str | None = None,
 ) -> list[Source]:
     query = build_query(title, body)
