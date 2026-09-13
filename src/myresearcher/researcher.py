@@ -205,11 +205,8 @@ class Researcher:
     # ---- github / git helpers -------------------------------------------
 
     def _fetch_issue(self, number: int) -> _Topic:
-        argv = ["issue", "view", str(number), "--json", "number,title,body"]
-        if self.repo:
-            argv += ["--repo", self.repo]
-        obj = json.loads(self.runner(argv))
-        return _Topic(number=obj["number"], title=obj["title"], body=obj.get("body") or "")
+        issue = self.github.get_issue(number)
+        return _Topic(number=issue.number, title=issue.title, body=issue.body)
 
     def _open_pr_with_file(
         self, path: str, content: str, *, branch: str, commit: str, title: str, body: str
@@ -287,11 +284,11 @@ class Researcher:
     def _comment(self, issue: int, body: str) -> str | None:
         if self.repo is None:
             return None
-        argv = ["issue", "comment", str(issue), "--repo", self.repo, "--body", body]
         action = Action(kind="bash", payload={"command": f"gh issue comment {issue}"})
         if self.policy.evaluate(action).under(unattended=in_github_actions()) is not Decision.ALLOW:
             return None
-        return self.runner(argv).strip() or None
+        self.github.comment(issue, body)
+        return "commented"
 
     def _git(self, tree: Path, argv: list[str]) -> None:
         self._guard("git " + " ".join(argv))
