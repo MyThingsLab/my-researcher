@@ -4,16 +4,10 @@ import argparse
 import os
 from pathlib import Path
 
-from mythings.engine import ClaudeCLIEngine, Engine, NoopEngine
+from mythings.engine import build_engine_from_args
 from mythings.ledger import Ledger
 
 from myresearcher.researcher import Researcher, Result
-
-
-def build_engine(name: str, *, model: str | None = None) -> Engine:
-    if name == "claude-cli":
-        return ClaudeCLIEngine(model=model)
-    return NoopEngine()
 
 
 def _add_common(parser: argparse.ArgumentParser) -> None:
@@ -46,7 +40,7 @@ def _make(args: argparse.Namespace) -> Researcher:
         repo=args.repo,
         ledger=Ledger(args.ledger),
         base=args.base,
-        engine=build_engine(args.engine, model=args.engine_model),
+        engine=build_engine_from_args(args),
         web_api_key=os.environ.get("TAVILY_API_KEY"),
     )
 
