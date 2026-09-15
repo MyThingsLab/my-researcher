@@ -1,7 +1,16 @@
 from __future__ import annotations
 
+import inspect
+
+from mythings.http import http_get
+
 from conftest import fake_fetch
 from myresearcher.retrieval import build_query, retrieve, search_arxiv, search_web
+
+
+def test_default_fetcher_is_mythings_http_get() -> None:
+    for func in (search_arxiv, search_web, retrieve):
+        assert inspect.signature(func).parameters["fetch"].default is http_get
 
 
 def test_build_query_drops_stopwords_and_dedupes() -> None:
